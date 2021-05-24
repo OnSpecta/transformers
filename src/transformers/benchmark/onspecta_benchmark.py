@@ -20,8 +20,5 @@ results = benchmark.run()
 #         step=0,
 #         profiler_outdir=logdir)
 
-
-%tensorboard --logdir logs/func
-
 print(results)
 
