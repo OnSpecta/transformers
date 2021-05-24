@@ -83,24 +83,33 @@ def separate_process_wrapper_fn(func: Callable[[], None], do_multi_processing: b
         - `func`: (`callable`): function() -> ... generic function which will be executed in its own separate process
         - `do_multi_processing`: (`bool`) Whether to run function on separate process or not
     """
-
+    print('inside 1: 1')
     def multi_process_func(*args, **kwargs):
+        print('inside 1: 2')
         # run function in an individual
         # process to get correct memory
         def wrapper_func(queue: Queue, *args):
+            print('inside 1: 3')
             try:
                 result = func(*args)
             except Exception as e:
+                print('inside 1: 4')
                 logger.error(e)
                 print(e)
                 result = "N/A"
             queue.put(result)
 
+        print('inside 1: 5')
         queue = Queue()
+        print('inside 1: 6')
         p = Process(target=wrapper_func, args=[queue] + list(args))
+        print('inside 1: 7')
         p.start()
+        print('inside 1: 8')
         result = queue.get()
+        print('inside 1: 9')
         p.join()
+        print('inside 1: 10')
         return result
 
     if do_multi_processing:
@@ -679,11 +688,14 @@ class Benchmark(ABC):
         return separate_process_wrapper_fn(self._train_memory, self.args.do_multi_processing)(*args, **kwargs)
 
     def run(self):
+        print('I am here 1')
         result_dict = {model_name: {} for model_name in self.args.model_names}
         inference_result_time = copy.deepcopy(result_dict)
         inference_result_memory = copy.deepcopy(result_dict)
         train_result_time = copy.deepcopy(result_dict)
         train_result_memory = copy.deepcopy(result_dict)
+
+        print('I am here 2')
 
         for c, model_name in enumerate(self.args.model_names):
             self.print_fn(f"{c + 1} / {len(self.args.model_names)}")
@@ -697,17 +709,24 @@ class Benchmark(ABC):
             inference_result_memory[model_name] = copy.deepcopy(model_dict)
             train_result_time[model_name] = copy.deepcopy(model_dict)
             train_result_memory[model_name] = copy.deepcopy(model_dict)
-
+            print('I am here 3')
             inference_summary = train_summary = None
 
             for batch_size in self.args.batch_sizes:
+                print('I am here 4')
                 for sequence_length in self.args.sequence_lengths:
+                    print('I am here 5')
                     if self.args.inference:
+                        print('I am here 6')
                         if self.args.memory:
+                            print('I am here 7')
                             memory, inference_summary = self.inference_memory(model_name, batch_size, sequence_length)
+                            print('I am here 8')
                             inference_result_memory[model_name]["result"][batch_size][sequence_length] = memory
                         if self.args.speed:
+                            print('I am here 9')
                             time = self.inference_speed(model_name, batch_size, sequence_length)
+                            print('I am here 10')
                             inference_result_time[model_name]["result"][batch_size][sequence_length] = time
 
                     if self.args.training:
@@ -720,6 +739,7 @@ class Benchmark(ABC):
 
         if self.args.inference:
             if self.args.speed:
+                print('I am here ww')
                 self.print_fn("\n" + 20 * "=" + ("INFERENCE - SPEED - RESULT").center(40) + 20 * "=")
                 self.print_results(inference_result_time, type_label="Time in s")
                 self.save_to_csv(inference_result_time, self.args.inference_time_csv_file)
