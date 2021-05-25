@@ -95,7 +95,7 @@ def separate_process_wrapper_fn(func: Callable[[], None], do_multi_processing: b
             except Exception as e:
                 print('inside 1: 4')
                 logger.error(e)
-                print(e)
+                print("THE ISSUE:", e)
                 result = "N/A"
             queue.put(result)
 
@@ -720,7 +720,9 @@ class Benchmark(ABC):
                         print('I am here 6')
                         if self.args.memory:
                             print('I am here 7')
-                            memory, inference_summary = self.inference_memory(model_name, batch_size, sequence_length)
+                            # memory, inference_summary = self.inference_memory(model_name, batch_size, sequence_length)
+                            memory = None
+                            inference_summary = None
                             print('I am here 8')
                             inference_result_memory[model_name]["result"][batch_size][sequence_length] = memory
                         if self.args.speed:
