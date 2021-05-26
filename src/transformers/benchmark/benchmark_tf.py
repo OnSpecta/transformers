@@ -96,6 +96,7 @@ class TensorFlowBenchmark(Benchmark):
         strategy = self.args.strategy
         print('inside 2: 2')
         assert strategy is not None, "A device strategy has to be initialized before using TensorFlow."
+
         # # Set up logging.
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         logdir = '/onspecta/dev/logs/transformers/%s' % stamp
@@ -105,13 +106,16 @@ class TensorFlowBenchmark(Benchmark):
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
         print('inside 2: 3')
 
-        tf.summary.trace_on(graph=True, profiler=True)
+        # tf.summary.trace_on(graph=True, profiler=True)
+        tf.profiler.experimental.start('/onspecta/dev/logs/transformers/')
         test = self._measure_speed(_inference)
-        with writer.as_default():
-            tf.summary.trace_export(
-                name="my_func_trace",
-                step=0,
-                profiler_outdir=logdir)
+        tf.profiler.experimental.stop()
+
+        # with writer.as_default():
+        #     tf.summary.trace_export(
+        #         name="my_func_trace",
+        #         step=0,
+        #         profiler_outdir=logdir)
         return test
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
