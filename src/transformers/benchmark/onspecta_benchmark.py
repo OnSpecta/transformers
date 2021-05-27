@@ -8,8 +8,7 @@ args = TensorFlowBenchmarkArguments(models=["bert-base-uncased"], batch_sizes=[8
 benchmark = TensorFlowBenchmark(args)
 results = benchmark.run()
 
-
-#test12
+tf.DLS.print_profile_data()
 
 print(results)
 
