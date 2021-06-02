@@ -70,7 +70,6 @@ def run_with_tf_optimizations(do_eager_mode: bool, use_xla: bool):
         else:
             return run_in_graph_mode
 
-    # 'run_with_tf_optimizations' returns a 'run_func' without executing it
     return run_func
 
 
@@ -92,9 +91,7 @@ class TensorFlowBenchmark(Benchmark):
 
     def _inference_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
         # initialize GPU on separate process
-        print('inside 2: 1')
         strategy = self.args.strategy
-        print('inside 2: 2')
         assert strategy is not None, "A device strategy has to be initialized before using TensorFlow."
 
         # # Set up logging.
@@ -102,20 +99,13 @@ class TensorFlowBenchmark(Benchmark):
         logdir = '/onspecta/dev/logs/transformers/%s' % stamp
         writer = tf.summary.create_file_writer(logdir)
 
-
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
-        print('inside 2: 3')
 
         # tf.summary.trace_on(graph=True, profiler=True)
+
         tf.profiler.experimental.start('/onspecta/dev/logs/transformers/')
         test = self._measure_speed(_inference)
         tf.profiler.experimental.stop()
-
-        # with writer.as_default():
-        #     tf.summary.trace_export(
-        #         name="my_func_trace",
-        #         step=0,
-        #         profiler_outdir=logdir)
         return test
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
@@ -168,10 +158,7 @@ class TensorFlowBenchmark(Benchmark):
                 print('inside 3: 5')
                 model_cls = getattr(transformers_module, model_class)
                 print('inside 3: 6')
-
-                print('is this tf????:')
                 model = model_cls(config)
-                print('yesss')
             except ImportError:
                 raise ImportError(
                     f"{model_class} does not exist. If you just want to test the pretrained model, you might want to set `--only_pretrain_model` or `args.only_pretrain_model=True`."
@@ -185,19 +172,6 @@ class TensorFlowBenchmark(Benchmark):
         vocab_size = config.vocab_size if hasattr(config, "vocab_size") else config.encoder.vocab_size
         input_ids = random_input_ids(batch_size, sequence_length, vocab_size)
 
-        # tf.summary.trace_on(graph=True, profiler=True)
-
-        # # Set up logging.
-        # stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        # logdir = '/onspecta/dev/logs/transformers/%s' % stamp
-        # writer = tf.summary.create_file_writer(logdir)
-
-        # tf.summary.trace_on(graph=True, profiler=True)
-        # with writer.as_default():
-        #     tf.summary.trace_export(
-        #         name="my_func_trace",
-        #         step=0,
-        #         profiler_outdir=logdir)
 
         @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
         def encoder_decoder_forward():
