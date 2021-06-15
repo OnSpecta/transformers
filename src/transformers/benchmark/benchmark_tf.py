@@ -103,7 +103,7 @@ class TensorFlowBenchmark(Benchmark):
 
         # tf.summary.trace_on(graph=True, profiler=True)
 
-        tf.profiler.experimental.start('/onspecta/dev/logs/transformers/')
+        tf.profiler.experimental.start('/')
         test = self._measure_speed(_inference)
         tf.profiler.experimental.stop()
         return test
