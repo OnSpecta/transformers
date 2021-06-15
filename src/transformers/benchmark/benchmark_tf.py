@@ -95,15 +95,15 @@ class TensorFlowBenchmark(Benchmark):
         assert strategy is not None, "A device strategy has to be initialized before using TensorFlow."
 
         # # Set up logging.
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        logdir = '/onspecta/dev/logs/transformers/%s' % stamp
-        writer = tf.summary.create_file_writer(logdir)
+        # stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        # logdir = '/onspecta/dev/logs/transformers/%s' % stamp
+        # writer = tf.summary.create_file_writer(logdir)
 
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
 
         # tf.summary.trace_on(graph=True, profiler=True)
 
-        tf.profiler.experimental.start('../../../logs/')
+        tf.profiler.experimental.start('logs/')
         test = self._measure_speed(_inference)
         tf.profiler.experimental.stop()
         return test
