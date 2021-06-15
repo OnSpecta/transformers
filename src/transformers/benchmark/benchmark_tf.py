@@ -23,6 +23,7 @@ import timeit
 from functools import wraps
 from typing import Callable, Optional
 from datetime import datetime
+from logs import utils
 
 from ..configuration_utils import PretrainedConfig
 from ..file_utils import is_py3nvml_available, is_tf_available
