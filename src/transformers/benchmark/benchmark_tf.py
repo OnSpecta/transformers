@@ -19,11 +19,11 @@
 
 
 import random
+import os
 import timeit
 from functools import wraps
 from typing import Callable, Optional
 from datetime import datetime
-from logs import utils
 
 from ..configuration_utils import PretrainedConfig
 from ..file_utils import is_py3nvml_available, is_tf_available
@@ -95,16 +95,11 @@ class TensorFlowBenchmark(Benchmark):
         strategy = self.args.strategy
         assert strategy is not None, "A device strategy has to be initialized before using TensorFlow."
 
-        # # Set up logging.
-        # stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        # logdir = '/onspecta/dev/logs/transformers/%s' % stamp
-        # writer = tf.summary.create_file_writer(logdir)
-
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
 
-        # tf.summary.trace_on(graph=True, profiler=True)
-
-        tf.profiler.experimental.start('logs/')
+        # tensorflow profiler
+        print(os.environ['PROFILER_LOG_DIR'])
+        tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
         test = self._measure_speed(_inference)
         tf.profiler.experimental.stop()
         return test
@@ -138,9 +133,7 @@ class TensorFlowBenchmark(Benchmark):
         return self._measure_memory(_train)
 
     def _prepare_inference_func(self, model_name: str, batch_size: int, sequence_length: int) -> Callable[[], None]:
-        print('inside 3: 1')
         config = self.config_dict[model_name]
-        print('inside 3: 2')
         if self.args.fp16:
             raise NotImplementedError("Mixed precision is currently not supported.")
 
@@ -151,24 +144,17 @@ class TensorFlowBenchmark(Benchmark):
         )
         if not self.args.only_pretrain_model and has_model_class_in_config:
             try:
-                print('inside 3: 3')
-                print('he he he')
                 model_class = "TF" + config.architectures[0]  # prepend 'TF' for tensorflow model
-                print('inside 3: 4')
                 transformers_module = __import__("transformers", fromlist=[model_class])
-                print('inside 3: 5')
                 model_cls = getattr(transformers_module, model_class)
-                print('inside 3: 6')
                 model = model_cls(config)
             except ImportError:
                 raise ImportError(
                     f"{model_class} does not exist. If you just want to test the pretrained model, you might want to set `--only_pretrain_model` or `args.only_pretrain_model=True`."
                 )
         else:
-            # print('inside 3: 4')
             model = TF_MODEL_MAPPING[config.__class__](config)
 
-        # print('inside 3: 5')
         # encoder-decoder has vocab size saved differently
         vocab_size = config.vocab_size if hasattr(config, "vocab_size") else config.encoder.vocab_size
         input_ids = random_input_ids(batch_size, sequence_length, vocab_size)
@@ -176,19 +162,18 @@ class TensorFlowBenchmark(Benchmark):
 
         @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
         def encoder_decoder_forward():
-            print('RUN_WITH_TF_OPTIMIZATIONS_1')
+            print('RUN WITH TF OPTIMIZATIONS 1')
             return model(input_ids, decoder_input_ids=input_ids, training=False)
 
         # encoder_forward = run_with_tf_optimizations(encoder_forward)
         @run_with_tf_optimizations(False, self.args.use_xla)
         def encoder_forward():
-            print('RUN_WITH_TF_OPTIMIZATIONS_2')
+            print('RUN WITH TF OPTIMIZATIONS 2')
             test = model(input_ids, training=False)
             return test
 
         _inference = encoder_decoder_forward if config.is_encoder_decoder else encoder_forward
 
-        # print('inside 3: 6')
         return _inference
 
     def _prepare_train_func(self, model_name: str, batch_size: int, sequence_length: int) -> Callable[[], None]:
@@ -240,20 +225,13 @@ class TensorFlowBenchmark(Benchmark):
         return _train
 
     def _measure_speed(self, func) -> float:
-        print('inside 4: 1')
         with self.args.strategy.scope():
-            print('inside 4: 2')
             try:
-                print('inside 4: 3')
                 if self.args.is_tpu or self.args.use_xla:
-                    print('inside 4: 4')
                     # run additional 10 times to stabilize compilation for tpu
                     logger.info("Do inference on TPU. Running model 5 times to stabilize compilation")
-                    print('inside 4: 5')
                     timeit.repeat(func, repeat=1, number=5)
-                    print('inside 4: 6')
 
-                print('inside 4: 7')
                 # as written in https://docs.python.org/2/library/timeit.html#timeit.Timer.repeat, min should be taken rather than the average
                 runtimes = timeit.repeat(
                     func,
@@ -261,7 +239,6 @@ class TensorFlowBenchmark(Benchmark):
                     number=10,
                 )
 
-                print('inside 4: 8')
                 return min(runtimes) / 10.0
             except ResourceExhaustedError as e:
                 self.print_fn(f"Doesn't fit on GPU. {e}")
