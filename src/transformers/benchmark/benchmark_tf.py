@@ -98,11 +98,13 @@ class TensorFlowBenchmark(Benchmark):
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
 
         # tensorflow profiler
-        print(os.environ['PROFILER_LOG_DIR'])
-        tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
-        test = self._measure_speed(_inference)
-        tf.profiler.experimental.stop()
-        return test
+        if os.environ['PROFILER_LOG_DIR'] is not None:
+            tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
+            measure_speed_with_profiler = self._measure_speed(_inference)
+            tf.profiler.experimental.stop()
+            return measure_speed_with_profiler
+        else:
+            return self._measure_speed(_inference)
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
         strategy = self.args.strategy
@@ -162,13 +164,13 @@ class TensorFlowBenchmark(Benchmark):
 
         @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
         def encoder_decoder_forward():
-            print('RUN WITH TF OPTIMIZATIONS 1')
+            print('RUN WITH TF OPTIMIZATIONS')
             return model(input_ids, decoder_input_ids=input_ids, training=False)
 
         # encoder_forward = run_with_tf_optimizations(encoder_forward)
         @run_with_tf_optimizations(False, self.args.use_xla)
         def encoder_forward():
-            print('RUN WITH TF OPTIMIZATIONS 2')
+            print('RUN WITH TF OPTIMIZATIONS')
             test = model(input_ids, training=False)
             return test
 
