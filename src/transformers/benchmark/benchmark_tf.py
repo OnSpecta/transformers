@@ -98,12 +98,7 @@ class TensorFlowBenchmark(Benchmark):
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
 
         # tensorflow profiler
-        if os.environ['PROFILER_LOG_DIR'] is not None:
-            tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
-            measure_speed = self._measure_speed(_inference)
-            tf.profiler.experimental.stop()
-        else:
-            measure_speed = self._measure_speed(_inference)
+        measure_speed = self._measure_speed(_inference)
 
         return measure_speed
 
