@@ -100,11 +100,12 @@ class TensorFlowBenchmark(Benchmark):
         # tensorflow profiler
         if os.environ['PROFILER_LOG_DIR'] is not None:
             tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
-            measure_speed_with_profiler = self._measure_speed(_inference)
+            measure_speed = self._measure_speed(_inference)
             tf.profiler.experimental.stop()
-            return measure_speed_with_profiler
         else:
-            return self._measure_speed(_inference)
+            measure_speed = self._measure_speed(_inference)
+
+        return measure_speed
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
         strategy = self.args.strategy
