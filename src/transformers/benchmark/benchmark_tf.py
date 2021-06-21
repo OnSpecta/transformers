@@ -98,9 +98,14 @@ class TensorFlowBenchmark(Benchmark):
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
 
         # tensorflow profiler
-        measure_speed = self._measure_speed(_inference)
-
-        return measure_speed
+        if 'PROFILER' in os.environ:
+            tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
+            measure_speed_with_profiler = self._measure_speed(_inference)
+            tf.profiler.experimental.stop()
+            tf.DLS.print_profile_data()
+            return measure_speed_with_profiler
+        else:
+            return self._measure_speed(_inference)
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
         strategy = self.args.strategy
@@ -156,7 +161,6 @@ class TensorFlowBenchmark(Benchmark):
         # encoder-decoder has vocab size saved differently
         vocab_size = config.vocab_size if hasattr(config, "vocab_size") else config.encoder.vocab_size
         input_ids = random_input_ids(batch_size, sequence_length, vocab_size)
-
 
         @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
         def encoder_decoder_forward():
