@@ -102,7 +102,8 @@ class TensorFlowBenchmark(Benchmark):
             tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
             measure_speed_with_profiler = self._measure_speed(_inference)
             tf.profiler.experimental.stop()
-            tf.DLS.print_profile_data()
+            if 'DLS_PROFILER' in os.environ and os.environ['DLS_PROFILER'] == '1':
+                tf.DLS.print_profile_data()
             return measure_speed_with_profiler
         else:
             return self._measure_speed(_inference)
