@@ -20,6 +20,7 @@
 
 import random
 import os
+import time
 import timeit
 from functools import wraps
 from typing import Callable, Optional
@@ -37,6 +38,8 @@ from .benchmark_utils import (
     start_memory_tracing,
     stop_memory_tracing,
 )
+
+from nlp.profiler import print_profiler_results
 
 
 if is_tf_available():
@@ -97,16 +100,22 @@ class TensorFlowBenchmark(Benchmark):
 
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
 
+        first_run = self._measure_speed(_inference)
+
         # tensorflow profiler
         if 'PROFILER' in os.environ:
-            tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
+            # tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
             measure_speed_with_profiler = self._measure_speed(_inference)
-            tf.profiler.experimental.stop()
-            if 'DLS_PROFILER' in os.environ and os.environ['DLS_PROFILER'] == '1':
-                tf.DLS.print_profile_data()
+            # tf.profiler.experimental.stop()
+            #
+            print_profiler_results(os.environ['PROFILER_LOG_DIR'])
+            #
+            # if 'DLS_PROFILER' in os.environ and os.environ['DLS_PROFILER'] == '1':
+            #     tf.DLS.print_profile_data()
             return measure_speed_with_profiler
         else:
-            return self._measure_speed(_inference)
+            measure_speed_without_profiler = self._measure_speed(_inference)
+            return measure_speed_without_profiler
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
         strategy = self.args.strategy
@@ -166,7 +175,8 @@ class TensorFlowBenchmark(Benchmark):
         @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
         def encoder_decoder_forward():
             print('RUN WITH TF OPTIMIZATIONS')
-            return model(input_ids, decoder_input_ids=input_ids, training=False)
+            test = model(input_ids, decoder_input_ids=input_ids, training=False)
+            return test
 
         # encoder_forward = run_with_tf_optimizations(encoder_forward)
         @run_with_tf_optimizations(False, self.args.use_xla)
@@ -235,14 +245,15 @@ class TensorFlowBenchmark(Benchmark):
                     logger.info("Do inference on TPU. Running model 5 times to stabilize compilation")
                     timeit.repeat(func, repeat=1, number=5)
 
-                # as written in https://docs.python.org/2/library/timeit.html#timeit.Timer.repeat, min should be taken rather than the average
+                # as written in https://docs.python.org/2/library/timeit.html#timeit.
+                # Timer.repeat, min should be taken rather than the average
                 runtimes = timeit.repeat(
                     func,
-                    repeat=self.args.repeat,
+                    repeat=3,
                     number=10,
                 )
 
-                return min(runtimes) / 10.0
+                return runtimes
             except ResourceExhaustedError as e:
                 self.print_fn(f"Doesn't fit on GPU. {e}")
 
