@@ -25,6 +25,7 @@ import timeit
 from functools import wraps
 from typing import Callable, Optional
 from datetime import datetime
+from tensorflow.python.framework.ops import disable_eager_execution
 
 from ..configuration_utils import PretrainedConfig
 from ..file_utils import is_py3nvml_available, is_tf_available
@@ -104,9 +105,13 @@ class TensorFlowBenchmark(Benchmark):
 
         # tensorflow profiler
         if 'PROFILER' in os.environ:
-            # tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
+            options = tf.profiler.experimental.ProfilerOptions(
+                host_tracer_level=3, python_tracer_level=0, device_tracer_level=1, delay_ms=None
+            )
+
+            tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'], options=options)
             measure_speed_with_profiler = self._measure_speed(_inference)
-            # tf.profiler.experimental.stop()
+            tf.profiler.experimental.stop()
             #
             print_profiler_results(os.environ['PROFILER_LOG_DIR'])
             #
@@ -146,6 +151,8 @@ class TensorFlowBenchmark(Benchmark):
         return self._measure_memory(_train)
 
     def _prepare_inference_func(self, model_name: str, batch_size: int, sequence_length: int) -> Callable[[], None]:
+        # add this function to force to run in graph mode.
+        disable_eager_execution()
         config = self.config_dict[model_name]
         if self.args.fp16:
             raise NotImplementedError("Mixed precision is currently not supported.")
@@ -172,14 +179,14 @@ class TensorFlowBenchmark(Benchmark):
         vocab_size = config.vocab_size if hasattr(config, "vocab_size") else config.encoder.vocab_size
         input_ids = random_input_ids(batch_size, sequence_length, vocab_size)
 
-        @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
+        @run_with_tf_optimizations(False, False)
         def encoder_decoder_forward():
             print('RUN WITH TF OPTIMIZATIONS')
             test = model(input_ids, decoder_input_ids=input_ids, training=False)
             return test
 
         # encoder_forward = run_with_tf_optimizations(encoder_forward)
-        @run_with_tf_optimizations(False, self.args.use_xla)
+        @run_with_tf_optimizations(False, False)
         def encoder_forward():
             print('RUN WITH TF OPTIMIZATIONS')
             test = model(input_ids, training=False)
@@ -247,11 +254,14 @@ class TensorFlowBenchmark(Benchmark):
 
                 # as written in https://docs.python.org/2/library/timeit.html#timeit.
                 # Timer.repeat, min should be taken rather than the average
+                # tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
                 runtimes = timeit.repeat(
                     func,
-                    repeat=3,
-                    number=10,
+                    repeat=1,
+                    number=1,
                 )
+                # tf.profiler.experimental.stop()
+                # print_profiler_results(os.environ['PROFILER_LOG_DIR'])
 
                 return runtimes
             except ResourceExhaustedError as e:
