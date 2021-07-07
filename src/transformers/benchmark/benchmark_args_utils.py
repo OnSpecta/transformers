@@ -121,6 +121,15 @@ class BenchmarkArguments:
         },
     )
 
+    num_runs: int = field(default=10, metadata={"help": "Times an experiment will be iterated in one run."})
+    only_pretrain_model: bool = field(
+        default=False,
+        metadata={
+            "help": "Helps to stabilize result."
+        },
+    )
+
+
     def to_json_string(self):
         """
         Serializes this instance to a JSON string.

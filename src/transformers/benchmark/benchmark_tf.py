@@ -39,9 +39,6 @@ from .benchmark_utils import (
     stop_memory_tracing,
 )
 
-from nlp.profiler import print_profiler_results
-
-
 if is_tf_available():
     import tensorflow as tf
     from tensorflow.python.framework.errors_impl import ResourceExhaustedError
@@ -55,7 +52,6 @@ logger = logging.get_logger(__name__)
 
 
 def run_with_tf_optimizations(do_eager_mode: bool, use_xla: bool):
-
     def run_func(func):
         @wraps(func)
         def run_in_eager_mode(*args, **kwargs):
@@ -84,7 +80,6 @@ def random_input_ids(batch_size: int, sequence_length: int, vocab_size: int) -> 
 
 
 class TensorFlowBenchmark(Benchmark):
-
     args: TensorFlowBenchmarkArguments
     configs: PretrainedConfig
     framework: str = "TensorFlow"
@@ -97,25 +92,13 @@ class TensorFlowBenchmark(Benchmark):
         # initialize GPU on separate process
         strategy = self.args.strategy
         assert strategy is not None, "A device strategy has to be initialized before using TensorFlow."
-
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
 
         first_run = self._measure_speed(_inference)
 
-        # tensorflow profiler
-        if 'PROFILER' in os.environ:
-            # tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'])
-            measure_speed_with_profiler = self._measure_speed(_inference)
-            # tf.profiler.experimental.stop()
-            #
-            print_profiler_results(os.environ['PROFILER_LOG_DIR'])
-            #
-            # if 'DLS_PROFILER' in os.environ and os.environ['DLS_PROFILER'] == '1':
-            #     tf.DLS.print_profile_data()
-            return measure_speed_with_profiler
-        else:
-            measure_speed_without_profiler = self._measure_speed(_inference)
-            return measure_speed_without_profiler
+        measure_speed = self._measure_speed(_inference)
+        return measure_speed
+  
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
         strategy = self.args.strategy
@@ -171,17 +154,17 @@ class TensorFlowBenchmark(Benchmark):
         # encoder-decoder has vocab size saved differently
         vocab_size = config.vocab_size if hasattr(config, "vocab_size") else config.encoder.vocab_size
         input_ids = random_input_ids(batch_size, sequence_length, vocab_size)
-
+        if self.args.eager_mode or self.args.use_xla:
+            print("Warning optimizations turned on.")
+            print("eager_mode: ", self.args.eager_mode)
+            print("args.use_xla: ", self.args.use_xla)
         @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
         def encoder_decoder_forward():
-            print('RUN WITH TF OPTIMIZATIONS')
             test = model(input_ids, decoder_input_ids=input_ids, training=False)
             return test
 
-        # encoder_forward = run_with_tf_optimizations(encoder_forward)
         @run_with_tf_optimizations(False, self.args.use_xla)
         def encoder_forward():
-            print('RUN WITH TF OPTIMIZATIONS')
             test = model(input_ids, training=False)
             return test
 
@@ -242,18 +225,25 @@ class TensorFlowBenchmark(Benchmark):
             try:
                 if self.args.is_tpu or self.args.use_xla:
                     # run additional 10 times to stabilize compilation for tpu
+
                     logger.info("Do inference on TPU. Running model 5 times to stabilize compilation")
                     timeit.repeat(func, repeat=1, number=5)
 
                 # as written in https://docs.python.org/2/library/timeit.html#timeit.
                 # Timer.repeat, min should be taken rather than the average
+                if os.environ.get("PROFILER", "0") == "1":
+                    options = tf.profiler.experimental.ProfilerOptions(host_tracer_level = 3,
+                                                   python_tracer_level = 0,
+                                                   device_tracer_level = 0)
+                    tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'], options = options)
                 runtimes = timeit.repeat(
                     func,
-                    repeat=3,
-                    number=10,
+                    repeat=self.args.repeat,
+                    number=self.args.num_runs
                 )
-
-                return runtimes
+                if os.environ.get("PROFILER", "0") == "1":
+                    tf.profiler.experimental.stop()
+                return [runtime % self.args.num_runs for runtime in runtimes]
             except ResourceExhaustedError as e:
                 self.print_fn(f"Doesn't fit on GPU. {e}")
 
