@@ -241,9 +241,11 @@ class TensorFlowBenchmark(Benchmark):
                     repeat=self.args.repeat,
                     number=self.args.num_runs
                 )
+
                 if os.environ.get("PROFILER", "0") == "1":
                     tf.profiler.experimental.stop()
-                return [runtime % self.args.num_runs for runtime in runtimes]
+
+                return [runtime / self.args.num_runs for runtime in runtimes]
             except ResourceExhaustedError as e:
                 self.print_fn(f"Doesn't fit on GPU. {e}")
 
