@@ -194,6 +194,7 @@ class PyTorchBenchmark(Benchmark):
         return _train
 
     def _measure_speed(self, func) -> float:
+        print("Measuring speed")
         try:
             if self.args.is_tpu or self.args.torchscript:
                 # run additional 10 times to stabilize compilation for tpu and torchscript
