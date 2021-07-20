@@ -120,7 +120,7 @@ class BenchmarkArguments:
             "help": "Instead of loading the model as defined in `config.architectures` if exists, just load the pretrain model weights."
         },
     )
-    num_runs: int = field(default=10, metadata={"help": "Times an experiment will be iterated in one run."})
+    num_runs: int = field(default=None, metadata={"help": "Times an experiment will be iterated in one run."})
     timeout: float = field(default=60., metadata={"help": "Time after an experiment will be interrupted [seconds]."})
 
     def to_json_string(self):
