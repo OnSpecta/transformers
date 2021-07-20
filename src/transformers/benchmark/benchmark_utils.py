@@ -95,6 +95,7 @@ def separate_process_wrapper_fn(func: Callable[[], None], do_multi_processing: b
             except Exception as e:
                 logger.error(e)
                 print(e)
+                aaa
                 if e is FP16NotAvailableError:
                     raise e
                 result = "N/A"
