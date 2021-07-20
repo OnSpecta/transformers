@@ -219,6 +219,8 @@ class TensorFlowBenchmark(Benchmark):
                     timeit.repeat(func, repeat=1, number=5)
 
                 # as written in https://docs.python.org/2/library/timeit.html#timeit.Timer.repeat, min should be taken rather than the average
+                print(self.args.num_runs)
+                df
                 runtimes = timeit.repeat(
                     func,
                     repeat=self.args.repeat,
