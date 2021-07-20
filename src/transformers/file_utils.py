@@ -1895,6 +1895,10 @@ class TensorType(ExplicitEnum):
     JAX = "jax"
 
 
+def greet_fellow_onspector():
+    print("OnSpecta's fork of Transformers repo successfully verified.")
+
+
 class _LazyModule(ModuleType):
     """
     Module class that surfaces all objects but only performs associated imports when the objects are requested.
@@ -1930,7 +1934,7 @@ class _LazyModule(ModuleType):
             module = self._get_module(self._class_to_module[name])
             value = getattr(module, name)
         elif name == "onspecta":
-            return "Hello :)"
+            return greet_fellow_onspector
         else:
             raise AttributeError(f"module {self.__name__} has no attribute {name}")
 
