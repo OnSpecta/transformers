@@ -36,7 +36,7 @@ from .benchmark_utils import (
     stop_memory_tracing,
 )
 
-from natural_language_processing.huggingface.run import FP16NotAvailableError
+import sys
 
 
 if is_tf_available():
@@ -128,7 +128,8 @@ class TensorFlowBenchmark(Benchmark):
         config = self.config_dict[model_name]
 
         if self.args.fp16:
-            raise FP16NotAvailableError
+            print(f"FP16 variant unavailable for model {model_name}")
+            sys.exit(1)
 
         has_model_class_in_config = (
             hasattr(config, "architectures")

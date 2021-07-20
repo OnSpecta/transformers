@@ -54,8 +54,6 @@ if platform.system() == "Windows":
 else:
     from signal import SIGKILL
 
-from natural_language_processing.huggingface.run import FP16NotAvailableError
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -95,8 +93,6 @@ def separate_process_wrapper_fn(func: Callable[[], None], do_multi_processing: b
             except Exception as e:
                 logger.error(e)
                 print(e)
-                if type(e) is FP16NotAvailableError:
-                    raise e
                 result = "N/A"
             queue.put(result)
 
