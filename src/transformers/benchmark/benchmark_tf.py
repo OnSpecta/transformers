@@ -46,6 +46,8 @@ if is_tf_available():
 if is_py3nvml_available():
     import py3nvml.py3nvml as nvml
 
+from utils.benchmark import benchmark_func
+
 logger = logging.get_logger(__name__)
 
 
@@ -218,14 +220,11 @@ class TensorFlowBenchmark(Benchmark):
                     logger.info("Do inference on TPU. Running model 5 times to stabilize compilation")
                     timeit.repeat(func, repeat=1, number=5)
 
-                # as written in https://docs.python.org/2/library/timeit.html#timeit.Timer.repeat, min should be taken rather than the average
-                runtimes = timeit.repeat(
+                return benchmark_func(
                     func,
-                    repeat=self.args.repeat,
-                    number=self.args.num_runs,
+                    num_of_runs=self.args.num_runs,
+                    timeout=self.args.timeout
                 )
-
-                return min(runtimes) / self.args.num_runs
             except ResourceExhaustedError as e:
                 self.print_fn(f"Doesn't fit on GPU. {e}")
 
