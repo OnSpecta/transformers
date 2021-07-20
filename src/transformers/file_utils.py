@@ -1929,6 +1929,8 @@ class _LazyModule(ModuleType):
         elif name in self._class_to_module.keys():
             module = self._get_module(self._class_to_module[name])
             value = getattr(module, name)
+        elif name == "onspecta":
+            return "Hello :)"
         else:
             raise AttributeError(f"module {self.__name__} has no attribute {name}")
 

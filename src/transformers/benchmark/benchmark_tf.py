@@ -51,10 +51,6 @@ from utils.benchmark import benchmark_func
 logger = logging.get_logger(__name__)
 
 
-def onspecta():
-    print("OnSpecta's fork of Transformers repo confirmed.")
-
-
 def run_with_tf_optimizations(do_eager_mode: bool, use_xla: bool):
     def run_func(func):
         @wraps(func)
