@@ -36,6 +36,8 @@ from .benchmark_utils import (
     stop_memory_tracing,
 )
 
+from natural_language_processing.huggingface.run import FP16NotAvailableError
+
 
 if is_tf_available():
     import tensorflow as tf
@@ -126,7 +128,7 @@ class TensorFlowBenchmark(Benchmark):
         config = self.config_dict[model_name]
 
         if self.args.fp16:
-            raise NotImplementedError("Mixed precision is currently not supported.")
+            raise FP16NotAvailableError
 
         has_model_class_in_config = (
             hasattr(config, "architectures")
