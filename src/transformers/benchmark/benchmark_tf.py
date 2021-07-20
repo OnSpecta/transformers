@@ -224,9 +224,8 @@ class TensorFlowBenchmark(Benchmark):
                     repeat=self.args.repeat,
                     number=self.args.num_runs,
                 )
-                print(runtimes)
 
-                return min(runtimes) / 10.0
+                return min(runtimes) / self.args.num_runs
             except ResourceExhaustedError as e:
                 self.print_fn(f"Doesn't fit on GPU. {e}")
 
