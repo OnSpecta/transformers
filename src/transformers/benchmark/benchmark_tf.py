@@ -128,7 +128,7 @@ class TensorFlowBenchmark(Benchmark):
         config = self.config_dict[model_name]
 
         if self.args.fp16:
-            raise FP16NotAvailableError
+            EXPLODE
 
         has_model_class_in_config = (
             hasattr(config, "architectures")
