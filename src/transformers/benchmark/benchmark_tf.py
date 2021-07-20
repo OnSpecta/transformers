@@ -224,6 +224,7 @@ class TensorFlowBenchmark(Benchmark):
                     repeat=self.args.repeat,
                     number=self.args.num_runs,
                 )
+                print(runtimes)
 
                 return min(runtimes) / 10.0
             except ResourceExhaustedError as e:
