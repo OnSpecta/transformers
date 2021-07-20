@@ -36,8 +36,6 @@ from .benchmark_utils import (
     stop_memory_tracing,
 )
 
-import sys
-
 
 if is_tf_available():
     import tensorflow as tf
@@ -128,8 +126,7 @@ class TensorFlowBenchmark(Benchmark):
         config = self.config_dict[model_name]
 
         if self.args.fp16:
-            print(f"FP16 variant unavailable for model {model_name}")
-            sys.exit(1)
+            raise NotImplementedError("Mixed precision is currently not supported.")
 
         has_model_class_in_config = (
             hasattr(config, "architectures")
@@ -225,7 +222,7 @@ class TensorFlowBenchmark(Benchmark):
                 runtimes = timeit.repeat(
                     func,
                     repeat=self.args.repeat,
-                    number=10,
+                    number=self.args.num_runs,
                 )
 
                 return min(runtimes) / 10.0
