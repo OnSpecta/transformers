@@ -46,7 +46,7 @@ if is_tf_available():
 if is_py3nvml_available():
     import py3nvml.py3nvml as nvml
 
-import os
+from utils.profiling import get_profile_path
 from utils.benchmark import benchmark_func
 
 logger = logging.get_logger(__name__)
@@ -229,7 +229,7 @@ class TensorFlowBenchmark(Benchmark):
                         python_tracer_level=0,
                         device_tracer_level=0
                     )
-                    tf.profiler.experimental.start(os.path.join(os.getcwd(), "profiling"), options=options)
+                    tf.profiler.experimental.start(get_profile_path(), options=options)
                     self.args.num_runs = 1
 
                 result = benchmark_func(
