@@ -230,6 +230,7 @@ class TensorFlowBenchmark(Benchmark):
                         device_tracer_level=0
                     )
                     tf.profiler.experimental.start(os.path.join(os.getcwd(), "profiling"), options=options)
+                    self.args.num_runs = 1
 
                 result = benchmark_func(
                     func,
