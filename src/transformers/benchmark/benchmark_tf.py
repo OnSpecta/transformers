@@ -221,18 +221,21 @@ class TensorFlowBenchmark(Benchmark):
                     logger.info("Do inference on TPU. Running model 5 times to stabilize compilation")
                     timeit.repeat(func, repeat=1, number=5)
 
+                _ = func()  # warm-up
+
                 if self.args.profiler:
                     options = tf.profiler.experimental.ProfilerOptions(
                         host_tracer_level=3,
                         python_tracer_level=0,
                         device_tracer_level=0
                     )
-                    tf.profiler.experimental.start(os.getcwd(), options=options)
+                    tf.profiler.experimental.start(os.path.join(os.getcwd(), "profiling"), options=options)
 
                 result = benchmark_func(
                     func,
                     num_of_runs=self.args.num_runs,
-                    timeout=self.args.timeout
+                    timeout=self.args.timeout,
+                    warm_up=False
                 )
 
                 if self.args.profiler:
