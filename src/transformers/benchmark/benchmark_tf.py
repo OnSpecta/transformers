@@ -46,6 +46,7 @@ if is_tf_available():
 if is_py3nvml_available():
     import py3nvml.py3nvml as nvml
 
+import os
 from utils.benchmark import benchmark_func
 
 logger = logging.get_logger(__name__)
@@ -219,6 +220,16 @@ class TensorFlowBenchmark(Benchmark):
                     # run additional 10 times to stabilize compilation for tpu
                     logger.info("Do inference on TPU. Running model 5 times to stabilize compilation")
                     timeit.repeat(func, repeat=1, number=5)
+
+                if self.args.profiler:
+                    print(os.getcwd())
+                    AAAA
+                    options = tf.profiler.experimental.ProfilerOptions(
+                        host_tracer_level=3,
+                        python_tracer_level=0,
+                        device_tracer_level=0
+                    )
+                    tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'], options=options)
 
                 return benchmark_func(
                     func,

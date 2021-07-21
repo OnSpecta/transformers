@@ -122,6 +122,7 @@ class BenchmarkArguments:
     )
     num_runs: int = field(default=None, metadata={"help": "Times an experiment will be iterated in one run."})
     timeout: float = field(default=60., metadata={"help": "Time after an experiment will be interrupted [seconds]."})
+    profiler: bool = field(default=False, metadata={"help": "Enable TF profiler."})
 
     def to_json_string(self):
         """
