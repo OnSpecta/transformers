@@ -1896,7 +1896,7 @@ class TensorType(ExplicitEnum):
 
 
 def greet_fellow_onspector():
-    print("OnSpecta's fork of Transformers repo successfully verified.")
+    print("\nOnSpecta's fork of Transformers repo successfully verified.\n")
 
 
 class _LazyModule(ModuleType):

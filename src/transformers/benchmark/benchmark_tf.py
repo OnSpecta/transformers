@@ -222,20 +222,22 @@ class TensorFlowBenchmark(Benchmark):
                     timeit.repeat(func, repeat=1, number=5)
 
                 if self.args.profiler:
-                    print(os.getcwd())
-                    AAAA
                     options = tf.profiler.experimental.ProfilerOptions(
                         host_tracer_level=3,
                         python_tracer_level=0,
                         device_tracer_level=0
                     )
-                    tf.profiler.experimental.start(os.environ['PROFILER_LOG_DIR'], options=options)
+                    tf.profiler.experimental.start(os.getcwd(), options=options)
 
-                return benchmark_func(
+                result = benchmark_func(
                     func,
                     num_of_runs=self.args.num_runs,
                     timeout=self.args.timeout
                 )
+
+                if self.args.profiler:
+                    tf.profiler.experimental.stop()
+                return result
             except ResourceExhaustedError as e:
                 self.print_fn(f"Doesn't fit on GPU. {e}")
 
