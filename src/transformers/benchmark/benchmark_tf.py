@@ -239,6 +239,8 @@ class TensorFlowBenchmark(Benchmark):
                     warm_up=False
                 )
 
+                if "DLS_PROFILER" in os.environ and os.environ["DLS_PROFILER"] == "1":
+                    tf.DLS.print_profile_data()
                 if self.args.profiler:
                     tf.profiler.experimental.stop()
                 return result
