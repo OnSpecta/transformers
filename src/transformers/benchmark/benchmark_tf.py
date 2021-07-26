@@ -19,9 +19,12 @@
 
 
 import random
+import os
+import time
 import timeit
 from functools import wraps
 from typing import Callable, Optional
+from datetime import datetime
 
 from ..configuration_utils import PretrainedConfig
 from ..file_utils import is_py3nvml_available, is_tf_available
@@ -35,7 +38,6 @@ from .benchmark_utils import (
     start_memory_tracing,
     stop_memory_tracing,
 )
-
 
 if is_tf_available():
     import tensorflow as tf
@@ -82,7 +84,6 @@ def random_input_ids(batch_size: int, sequence_length: int, vocab_size: int) -> 
 
 
 class TensorFlowBenchmark(Benchmark):
-
     args: TensorFlowBenchmarkArguments
     configs: PretrainedConfig
     framework: str = "TensorFlow"
@@ -96,7 +97,10 @@ class TensorFlowBenchmark(Benchmark):
         strategy = self.args.strategy
         assert strategy is not None, "A device strategy has to be initialized before using TensorFlow."
         _inference = self._prepare_inference_func(model_name, batch_size, sequence_length)
-        return self._measure_speed(_inference)
+
+        measure_speed = self._measure_speed(_inference)
+        return measure_speed
+  
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
         strategy = self.args.strategy
@@ -128,7 +132,6 @@ class TensorFlowBenchmark(Benchmark):
 
     def _prepare_inference_func(self, model_name: str, batch_size: int, sequence_length: int) -> Callable[[], None]:
         config = self.config_dict[model_name]
-
         if self.args.fp16:
             raise NotImplementedError("Mixed precision is currently not supported.")
 
@@ -153,14 +156,19 @@ class TensorFlowBenchmark(Benchmark):
         # encoder-decoder has vocab size saved differently
         vocab_size = config.vocab_size if hasattr(config, "vocab_size") else config.encoder.vocab_size
         input_ids = random_input_ids(batch_size, sequence_length, vocab_size)
-
+        if self.args.eager_mode or self.args.use_xla:
+            print("Warning optimizations turned on.")
+            print("eager_mode: ", self.args.eager_mode)
+            print("args.use_xla: ", self.args.use_xla)
         @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
         def encoder_decoder_forward():
-            return model(input_ids, decoder_input_ids=input_ids, training=False)
+            test = model(input_ids, decoder_input_ids=input_ids, training=False)
+            return test
 
         @run_with_tf_optimizations(self.args.eager_mode, self.args.use_xla)
         def encoder_forward():
-            return model(input_ids, training=False)
+            test = model(input_ids, training=False)
+            return test
 
         _inference = encoder_decoder_forward if config.is_encoder_decoder else encoder_forward
 
@@ -219,6 +227,7 @@ class TensorFlowBenchmark(Benchmark):
             try:
                 if self.args.is_tpu or self.args.use_xla:
                     # run additional 10 times to stabilize compilation for tpu
+
                     logger.info("Do inference on TPU. Running model 5 times to stabilize compilation")
                     timeit.repeat(func, repeat=1, number=5)
 
@@ -235,6 +244,7 @@ class TensorFlowBenchmark(Benchmark):
 
                 result = benchmark_func(
                     func,
+                    # from jerry/improved_internals legacy code: TODO check for compatibility
                     num_of_runs=self.args.num_runs,
                     timeout=self.args.timeout,
                     warm_up=False
@@ -244,6 +254,10 @@ class TensorFlowBenchmark(Benchmark):
                     tf.DLS.print_profile_data()
                 if self.args.profiler:
                     tf.profiler.experimental.stop()
+
+                # from jerry/improved_internals legacy code:
+                # return [runtime / self.args.num_runs for runtime in runtimes]
+                # TODO check for compatibility
                 return result
             except ResourceExhaustedError as e:
                 self.print_fn(f"Doesn't fit on GPU. {e}")

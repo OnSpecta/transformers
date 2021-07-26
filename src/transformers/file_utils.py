@@ -638,7 +638,7 @@ BACKENDS_MAPPING = OrderedDict(
 
 
 def requires_backends(obj, backends):
-    if not isinstance(backends, (list, tuple)):
+    if not (backends, (list, tuple)):
         backends = [backends]
 
     name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__

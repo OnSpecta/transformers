@@ -35,6 +35,8 @@ from .. import __version__ as version
 from ..file_utils import is_psutil_available, is_py3nvml_available, is_tf_available, is_torch_available
 from ..utils import logging
 from .benchmark_args_utils import BenchmarkArguments
+from nlp.profiler import print_profiler_results
+import tensorflow as tf
 
 
 if is_torch_available():
@@ -83,7 +85,6 @@ def separate_process_wrapper_fn(func: Callable[[], None], do_multi_processing: b
         - `func`: (`callable`): function() -> ... generic function which will be executed in its own separate process
         - `do_multi_processing`: (`bool`) Whether to run function on separate process or not
     """
-
     def multi_process_func(*args, **kwargs):
         # run function in an individual
         # process to get correct memory
@@ -92,7 +93,6 @@ def separate_process_wrapper_fn(func: Callable[[], None], do_multi_processing: b
                 result = func(*args)
             except Exception as e:
                 logger.error(e)
-                print(e)
                 result = "N/A"
             queue.put(result)
 
@@ -697,14 +697,15 @@ class Benchmark(ABC):
             inference_result_memory[model_name] = copy.deepcopy(model_dict)
             train_result_time[model_name] = copy.deepcopy(model_dict)
             train_result_memory[model_name] = copy.deepcopy(model_dict)
-
             inference_summary = train_summary = None
 
             for batch_size in self.args.batch_sizes:
                 for sequence_length in self.args.sequence_lengths:
                     if self.args.inference:
                         if self.args.memory:
-                            memory, inference_summary = self.inference_memory(model_name, batch_size, sequence_length)
+                            # memory, inference_summary = self.inference_memory(model_name, batch_size, sequence_length)
+                            memory = None
+                            inference_summary = None
                             inference_result_memory[model_name]["result"][batch_size][sequence_length] = memory
                         if self.args.speed:
                             time = self.inference_speed(model_name, batch_size, sequence_length)
@@ -855,6 +856,11 @@ class Benchmark(ABC):
                         result.center(15),
                     )
         self.print_fn(80 * "-")
+        if os.environ.get("PROFILER", "0") == "1":
+            print("\n\n")
+            print_profiler_results(os.environ['PROFILER_LOG_DIR'])
+        if 'DLS_PROFILER' in os.environ and os.environ['DLS_PROFILER'] == '1':
+            tf.DLS.print_profile_data()    
 
     def print_memory_trace_statistics(self, summary: MemorySummary):
         self.print_fn(

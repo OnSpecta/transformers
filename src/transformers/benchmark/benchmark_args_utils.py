@@ -124,6 +124,15 @@ class BenchmarkArguments:
     timeout: float = field(default=60., metadata={"help": "Time after an experiment will be interrupted [seconds]."})
     profiler: bool = field(default=False, metadata={"help": "Enable TF profiler."})
 
+    num_runs: int = field(default=10, metadata={"help": "Times an experiment will be iterated in one run."})
+    only_pretrain_model: bool = field(
+        default=False,
+        metadata={
+            "help": "Helps to stabilize result."
+        },
+    )
+
+
     def to_json_string(self):
         """
         Serializes this instance to a JSON string.
