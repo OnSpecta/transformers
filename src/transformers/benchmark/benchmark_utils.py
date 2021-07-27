@@ -35,7 +35,6 @@ from .. import __version__ as version
 from ..file_utils import is_psutil_available, is_py3nvml_available, is_tf_available, is_torch_available
 from ..utils import logging
 from .benchmark_args_utils import BenchmarkArguments
-from nlp.profiler import print_profiler_results
 import tensorflow as tf
 
 
@@ -856,11 +855,6 @@ class Benchmark(ABC):
                         result.center(15),
                     )
         self.print_fn(80 * "-")
-        if os.environ.get("PROFILER", "0") == "1":
-            print("\n\n")
-            print_profiler_results(os.environ['PROFILER_LOG_DIR'])
-        if 'DLS_PROFILER' in os.environ and os.environ['DLS_PROFILER'] == '1':
-            tf.DLS.print_profile_data()
 
     def print_memory_trace_statistics(self, summary: MemorySummary):
         self.print_fn(
