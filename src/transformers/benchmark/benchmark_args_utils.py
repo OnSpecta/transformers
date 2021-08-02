@@ -123,14 +123,15 @@ class BenchmarkArguments:
     num_runs: int = field(default=None, metadata={"help": "Times an experiment will be iterated in one run."})
     timeout: float = field(default=60., metadata={"help": "Time after an experiment will be interrupted [seconds]."})
     profiler: bool = field(default=False, metadata={"help": "Enable TF profiler."})
+    save_model: bool = field(default=False, metadata={"help": "Save model using TF profiler summary."})
 
-    num_runs: int = field(default=10, metadata={"help": "Times an experiment will be iterated in one run."})
-    only_pretrain_model: bool = field(
-        default=False,
-        metadata={
-            "help": "Helps to stabilize result."
-        },
-    )
+    # num_runs: int = field(default=10, metadata={"help": "Times an experiment will be iterated in one run."})
+    # only_pretrain_model: bool = field(
+    #     default=False,
+    #     metadata={
+    #         "help": "Helps to stabilize result."
+    #     },
+    # )
 
 
     def to_json_string(self):

@@ -49,8 +49,11 @@ if is_py3nvml_available():
     import py3nvml.py3nvml as nvml
 
 import os
-from utils.profiling import get_profile_path
+from utils.profiling import get_profile_path, get_profiler_summary_path
 from utils.benchmark import benchmark_func
+
+from natural_language_processing.huggingface.profiler_results.utils import get_profiler_results_path
+from datetime import datetime
 
 logger = logging.get_logger(__name__)
 
@@ -100,7 +103,6 @@ class TensorFlowBenchmark(Benchmark):
 
         measure_speed = self._measure_speed(_inference)
         return measure_speed
-  
 
     def _train_speed(self, model_name: str, batch_size: int, sequence_length: int) -> float:
         strategy = self.args.strategy
@@ -242,9 +244,13 @@ class TensorFlowBenchmark(Benchmark):
                     tf.profiler.experimental.start(get_profile_path(), options=options)
                     self.args.num_runs = 1
 
+                if self.args.save_model:
+                    print(get_profiler_summary_path())
+                    writer = tf.summary.create_file_writer(get_profiler_summary_path())
+                    tf.summary.trace_on(graph=True, profiler=True)
+
                 result = benchmark_func(
                     func,
-                    # from jerry/improved_internals legacy code: TODO check for compatibility
                     num_of_runs=self.args.num_runs,
                     timeout=self.args.timeout,
                     warm_up=False
@@ -254,6 +260,10 @@ class TensorFlowBenchmark(Benchmark):
                     tf.DLS.print_profile_data()
                 if self.args.profiler:
                     tf.profiler.experimental.stop()
+
+                if self.args.save_model:
+                    with writer.as_default():
+                        tf.summary.trace_export(name="my_func_trace", step=0, profiler_outdir=get_profiler_summary_path())
 
                 # from jerry/improved_internals legacy code:
                 # return [runtime / self.args.num_runs for runtime in runtimes]
