@@ -169,8 +169,13 @@ class BertEmbeddings(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.word_embeddings.qconfig = None
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.position_embeddings.qconfig = None
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        self.token_type_embeddings.qconfig = None
+        self.quant = torch.quantization.QuantStub()
+        self.dequant = torch.quantization.DeQuantStub()
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
@@ -218,7 +223,9 @@ class BertEmbeddings(nn.Module):
         if self.position_embedding_type == "absolute":
             position_embeddings = self.position_embeddings(position_ids)
             embeddings += position_embeddings
+        embeddings = self.quant(embeddings)
         embeddings = self.LayerNorm(embeddings)
+        embeddings = self.dequant(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
 
@@ -237,7 +244,9 @@ class BertSelfAttention(nn.Module):
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
         self.query = nn.Linear(config.hidden_size, self.all_head_size)
+        self.quant = torch.quantization.QuantStub()
         self.key = nn.Linear(config.hidden_size, self.all_head_size)
+        self.dequant = torch.quantization.DeQuantStub()
         self.value = nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
@@ -265,8 +274,8 @@ class BertSelfAttention(nn.Module):
         past_key_value: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
         output_attentions: Optional[bool] = False,
     ) -> Tuple:
-        mixed_query_layer = self.query(hidden_states)
-
+        mixed_query_layer = self.dequant(self.query(self.quant(hidden_states)))
+        
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
         # such that the encoder's padding tokens are not attended to.
@@ -278,17 +287,23 @@ class BertSelfAttention(nn.Module):
             value_layer = past_key_value[1]
             attention_mask = encoder_attention_mask
         elif is_cross_attention:
+            #key_layer = self.transpose_for_scores(self.dequant(self.key(self.quant(encoder_hidden_states))))
+            #value_layer = self.transpose_for_scores(self.dequant(self.value(self.quant(encoder_hidden_states))))
             key_layer = self.transpose_for_scores(self.key(encoder_hidden_states))
             value_layer = self.transpose_for_scores(self.value(encoder_hidden_states))
             attention_mask = encoder_attention_mask
         elif past_key_value is not None:
+            #key_layer = self.transpose_for_scores(self.dequant(self.key(self.quant(hidden_states))))
+            #value_layer = self.transpose_for_scores(self.dequant(self.value(self.quant(hidden_states))))
             key_layer = self.transpose_for_scores(self.key(hidden_states))
             value_layer = self.transpose_for_scores(self.value(hidden_states))
             key_layer = torch.cat([past_key_value[0], key_layer], dim=2)
             value_layer = torch.cat([past_key_value[1], value_layer], dim=2)
         else:
-            key_layer = self.transpose_for_scores(self.key(hidden_states))
-            value_layer = self.transpose_for_scores(self.value(hidden_states))
+            key_layer = self.transpose_for_scores(self.dequant(self.key(self.quant(hidden_states))))
+            value_layer = self.transpose_for_scores(self.dequant(self.value(self.quant(hidden_states))))
+            #key_layer = self.transpose_for_scores(self.key(hidden_states))
+            #value_layer = self.transpose_for_scores(self.value(hidden_states))
 
         query_layer = self.transpose_for_scores(mixed_query_layer)
 
@@ -356,11 +371,13 @@ class BertSelfOutput(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.quant = torch.quantization.QuantStub()
+        self.dequant = torch.quantization.DeQuantStub()
 
     def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
-        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dequant(self.dense(self.quant(hidden_states)))
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        hidden_states = self.dequant(self.LayerNorm(self.quant(hidden_states + input_tensor)))
         return hidden_states
 
 
@@ -417,13 +434,15 @@ class BertIntermediate(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.quant = torch.quantization.QuantStub()
+        self.dequant = torch.quantization.DeQuantStub()
         if isinstance(config.hidden_act, str):
             self.intermediate_act_fn = ACT2FN[config.hidden_act]
         else:
             self.intermediate_act_fn = config.hidden_act
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dequant(self.dense(self.quant(hidden_states)))
         hidden_states = self.intermediate_act_fn(hidden_states)
         return hidden_states
 
@@ -434,11 +453,13 @@ class BertOutput(nn.Module):
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.quant = torch.quantization.QuantStub()
+        self.dequant = torch.quantization.DeQuantStub()
 
     def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
-        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dequant(self.dense(self.quant(hidden_states)))
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        hidden_states = self.dequant(self.LayerNorm(self.quant(hidden_states + input_tensor)))
         return hidden_states
 
 
@@ -628,13 +649,15 @@ class BertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.quant = torch.quantization.QuantStub()
+        self.dequant = torch.quantization.DeQuantStub()
         self.activation = nn.Tanh()
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         # We "pool" the model by simply taking the hidden state corresponding
         # to the first token.
         first_token_tensor = hidden_states[:, 0]
-        pooled_output = self.dense(first_token_tensor)
+        pooled_output = self.dequant(self.dense(self.quant(first_token_tensor)))
         pooled_output = self.activation(pooled_output)
         return pooled_output
 
@@ -1509,7 +1532,9 @@ class BertForSequenceClassification(BertPreTrainedModel):
             config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
+        self.quant = torch.quantization.QuantStub()
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        self.dequant = torch.quantization.DequantStub()
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1557,6 +1582,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         pooled_output = outputs[1]
 
         pooled_output = self.dropout(pooled_output)
+        #logits = self.dequant(self.classifier(self.quant(pooled_output)))
         logits = self.classifier(pooled_output)
 
         loss = None
