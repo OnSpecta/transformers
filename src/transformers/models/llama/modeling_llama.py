@@ -548,13 +548,13 @@ class LlamaModel(LlamaPreTrainedModel):
                 use_cache = False
 
         # decoder layers
-        all_hidden_states = () if output_hidden_states else None
-        all_self_attns = () if output_attentions else None
-        next_decoder_cache = () if use_cache else None
+        all_hidden_states = [] if output_hidden_states else None
+        all_self_attns = [] if output_attentions else None
+        next_decoder_cache = [] if use_cache else None
 
         for idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
-                all_hidden_states += (hidden_states,)
+                all_hidden_states.append(hidden_states)
 
             past_key_value = past_key_values[idx] if past_key_values is not None else None
 
@@ -587,18 +587,20 @@ class LlamaModel(LlamaPreTrainedModel):
             hidden_states = layer_outputs[0]
 
             if use_cache:
-                next_decoder_cache += (layer_outputs[2 if output_attentions else 1],)
+                next_decoder_cache.append(layer_outputs[2 if output_attentions else 1])
 
             if output_attentions:
-                all_self_attns += (layer_outputs[1],)
+                all_self_attns.append(layer_outputs[1])
+                all_self_attns = tuple(all_self_attns)
 
         hidden_states = self.norm(hidden_states)
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
-            all_hidden_states += (hidden_states,)
+            all_hidden_states.append(hidden_states)
+            all_hidden_states = tuple(all_hidden_states)
 
-        next_cache = next_decoder_cache if use_cache else None
+        next_cache = tuple(next_decoder_cache) if use_cache else None
         if not return_dict:
             return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
         return BaseModelOutputWithPast(
