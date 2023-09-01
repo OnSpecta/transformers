@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 import torch
 import torch.distributed as dist
 from torch import nn
+import time
 
 from ..deepspeed import is_deepspeed_zero3_enabled
 from ..modeling_outputs import CausalLMOutputWithPast, Seq2SeqLMOutput
@@ -1247,6 +1248,7 @@ class GenerationMixin:
                 synced_gpus = False
 
         # 1. Handle `generation_config` and kwargs that might update it, and validate the `.generate()` call
+        print("1. generate()")
         self._validate_model_class()
 
         # priority: `generation_config` argument > `model.generation_config` (the default generation config)
@@ -1271,6 +1273,7 @@ class GenerationMixin:
         self._validate_model_kwargs(model_kwargs.copy())
 
         # 2. Set generation parameters if not already defined
+        print("2. Set generation parameters")
         logits_processor = logits_processor if logits_processor is not None else LogitsProcessorList()
         stopping_criteria = stopping_criteria if stopping_criteria is not None else StoppingCriteriaList()
 
@@ -1291,12 +1294,14 @@ class GenerationMixin:
         # model_input_name is defined if model-specific keyword input is passed
         # otherwise model_input_name is None
         # all model-specific keyword inputs are removed from `model_kwargs`
+        print("3. Prepare mode inputs")
         inputs_tensor, model_input_name, model_kwargs = self._prepare_model_inputs(
             inputs, generation_config.bos_token_id, model_kwargs
         )
         batch_size = inputs_tensor.shape[0]
 
         # 4. Define other model kwargs
+        print("4. Define model kwargs")
         model_kwargs["output_attentions"] = generation_config.output_attentions
         model_kwargs["output_hidden_states"] = generation_config.output_hidden_states
         model_kwargs["use_cache"] = generation_config.use_cache
@@ -1331,6 +1336,7 @@ class GenerationMixin:
             )
 
         # 5. Prepare `input_ids` which will be used for auto-regressive generation
+        print("5. Prepare input_ids for auto-regressive generation")
         if self.config.is_encoder_decoder:
             input_ids, model_kwargs = self._prepare_decoder_input_ids_for_generation(
                 batch_size=batch_size,
@@ -1460,6 +1466,7 @@ class GenerationMixin:
             )
 
         # 8. prepare distribution pre_processing samplers
+        print("8. Prepare distribution pre_processing samplers")
         logits_processor = self._get_logits_processor(
             generation_config=generation_config,
             input_ids_seq_length=input_ids_seq_length,
@@ -1474,6 +1481,7 @@ class GenerationMixin:
         )
         # 10. go into different generation modes
         if is_assisted_gen_mode:
+            print("10. assisted_gen_mode")
             if generation_config.num_return_sequences > 1:
                 raise ValueError(
                     "num_return_sequences has to be 1 when doing assisted generate, "
@@ -1512,6 +1520,7 @@ class GenerationMixin:
                 **model_kwargs,
             )
         if is_greedy_gen_mode:
+            print("11. greedy_gen_mode")
             if generation_config.num_return_sequences > 1:
                 raise ValueError(
                     "num_return_sequences has to be 1 when doing greedy search, "
@@ -1533,6 +1542,7 @@ class GenerationMixin:
             )
 
         elif is_contrastive_search_gen_mode:
+            print("contrastive_search_gen_mode")
             if generation_config.num_return_sequences > 1:
                 raise ValueError(
                     "num_return_sequences has to be 1 when doing contrastive search, "
@@ -1557,6 +1567,7 @@ class GenerationMixin:
             )
 
         elif is_sample_gen_mode:
+            print("sample_gen_mode")
             # 11. prepare logits warper
             logits_warper = self._get_logits_warper(generation_config)
 
@@ -1584,6 +1595,7 @@ class GenerationMixin:
             )
 
         elif is_beam_gen_mode:
+            print("beam_gen_mode")
             if generation_config.num_return_sequences > generation_config.num_beams:
                 raise ValueError("`num_return_sequences` has to be smaller or equal to `num_beams`.")
 
@@ -1622,6 +1634,7 @@ class GenerationMixin:
             )
 
         elif is_beam_sample_gen_mode:
+            print("beam_sample_gen_mode")
             # 11. prepare logits warper
             logits_warper = self._get_logits_warper(generation_config)
 
@@ -1661,6 +1674,7 @@ class GenerationMixin:
             )
 
         elif is_group_beam_gen_mode:
+            print("is_group_beam_gen_mode")
             if generation_config.num_return_sequences > generation_config.num_beams:
                 raise ValueError("`num_return_sequences` has to be smaller or equal to `num_beams`.")
 
@@ -1707,6 +1721,7 @@ class GenerationMixin:
             )
 
         elif is_constraint_gen_mode:
+            print("is_constraint_gen_mode")
             if generation_config.num_return_sequences > generation_config.num_beams:
                 raise ValueError("`num_return_sequences` has to be smaller or equal to `num_beams`.")
 
@@ -2321,6 +2336,8 @@ class GenerationMixin:
         unfinished_sequences = torch.ones(input_ids.shape[0], dtype=torch.long, device=input_ids.device)
 
         this_peer_finished = False  # used by synced_gpus only
+        #print("Enter loop...")
+        #start = time.time()
         while True:
             if synced_gpus:
                 # Under synced_gpus the `forward` call must continue until all gpus complete their sequence.
@@ -2336,12 +2353,16 @@ class GenerationMixin:
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
             # forward pass to get next token
+            #print("forward pass to get next token")
+            #start_forward = time.time()
             outputs = self(
                 **model_inputs,
                 return_dict=True,
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
             )
+            #print("forward time: {}".format(time.time() - start_forward))
+            #print("full time: {}".format(time.time() - start))
 
             if synced_gpus and this_peer_finished:
                 continue  # don't waste resources running the code we don't need
@@ -2403,10 +2424,12 @@ class GenerationMixin:
             if this_peer_finished and not synced_gpus:
                 break
 
+        #print("End loop -> time {}".format(time.time() - start))
         if streamer is not None:
             streamer.end()
 
         if return_dict_in_generate:
+            #print("return_dict_in_generate")
             if self.config.is_encoder_decoder:
                 return GreedySearchEncoderDecoderOutput(
                     sequences=input_ids,
@@ -4474,6 +4497,7 @@ class GenerationMixin:
 
         if return_dict_in_generate:
             if self.config.is_encoder_decoder:
+                print("is_encoder_decoder == true")
                 return GreedySearchEncoderDecoderOutput(
                     sequences=input_ids,
                     scores=scores,
@@ -4484,6 +4508,7 @@ class GenerationMixin:
                     decoder_hidden_states=decoder_hidden_states,
                 )
             else:
+                print("is_encoder_decoder == false")
                 return GreedySearchDecoderOnlyOutput(
                     sequences=input_ids,
                     scores=scores,
