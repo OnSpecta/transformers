@@ -213,11 +213,11 @@ class LlamaAttention(nn.Module):
 
         attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
 
-        if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
-            raise ValueError(
-                f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
-                f" {attn_weights.size()}"
-            )
+        #if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
+        #    raise ValueError(
+        #        f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
+        #        f" {attn_weights.size()}"
+        #    )
 
         if attention_mask is not None:
             #if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
@@ -689,7 +689,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        start_forward = time.time()
+        #start_forward = time.time()
         outputs = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -701,8 +701,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        end_forward = time.time()
-        print("LlamaForCausalLM forward", end_forward - start_forward)
+        #end_forward = time.time()
+        #print("LlamaForCausalLM forward", end_forward - start_forward)
 
         hidden_states = outputs[0]
         logits = self.lm_head(hidden_states)
