@@ -805,12 +805,13 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if self.quantized and past_key_values is not None:
+        quantized = self.config.quantized
+
+        if quantized and past_key_values is None:
             outputs = self.quantized_model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_values=past_key_values
+                position_ids=position_ids
             )
         else:
             # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
