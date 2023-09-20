@@ -873,6 +873,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
                     operator_config = torch.ao.quantization.quantizer.xnnpack_quantizer.get_symmetric_quantization_config()
                     quantizer.set_global(operator_config)
                     self.quantized_prompt_model = prepare_pt2e(self.quantized_prompt_model, quantizer)
+                    self.prompt_example_inputs = (input_ids, attention_mask, position_ids)
 
                 self.quantized_prompt_model(input_ids, attention_mask, position_ids)
             else:
@@ -883,6 +884,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
                     operator_config = torch.ao.quantization.quantizer.xnnpack_quantizer.get_symmetric_quantization_config()
                     quantizer.set_global(operator_config)
                     self.quantized_token_model = prepare_pt2e(self.quantized_token_model, quantizer)
+                    self.token_example_inputs = (input_ids, attention_mask, position_ids, past_key_values)
 
                 self.quantized_token_model(input_ids, attention_mask, position_ids, past_key_values)
 
