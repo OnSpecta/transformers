@@ -2485,9 +2485,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             quantization_method_from_args == QuantizationMethod.GPTQ
             or quantization_method_from_config == QuantizationMethod.GPTQ
         ):
-            if not torch.cuda.is_available():
-                raise RuntimeError("GPU is required to quantize or run quantize model.")
-            elif not (is_optimum_available() and is_auto_gptq_available()):
+            if not (is_optimum_available() and is_auto_gptq_available()):
                 raise ImportError(
                     "Loading GPTQ quantized model requires optimum library : `pip install optimum` and auto-gptq library 'pip install auto-gptq'"
                 )
