@@ -295,6 +295,10 @@ class LlamaAttention(nn.Module):
         self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=config.attention_bias)
         self.k_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=config.attention_bias)
         self.v_proj = nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=config.attention_bias)
+        self.merged_proj = nn.Linear(self.hidden_size, 3 * self.num_key_value_heads * self.head_dim, bias=config.attention_bias)
+        self.merged_proj.weight = nn.Parameter(torch.cat((self.q_proj.weight, self.k_proj.weight, self.v_proj.weight), dim=0))
+        if self.q_proj.bias != None:
+            self.merged_proj.bias = nn.Parameter(torch.cat((self.q_proj.bias, self.k_proj.bias, self.v_proj.bias), dim=0))
         self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=config.attention_bias)
         self._init_rope()
 
@@ -363,13 +367,17 @@ class LlamaAttention(nn.Module):
             value_states = torch.cat(value_states, dim=-1)
 
         else:
-            query_states = self.q_proj(hidden_states)
-            key_states = self.k_proj(hidden_states)
-            value_states = self.v_proj(hidden_states)
+            merged_states = self.merged_proj(hidden_states)
+            #query_states = self.q_proj(hidden_states)
+            #key_states = self.k_proj(hidden_states)
+            #value_states = self.v_proj(hidden_states)
 
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
-        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        #query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        #key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        #value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+
+        merged_states = merged_states.view(3 * bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        query_states, key_states, value_states = torch.chunk(merged_states, 3, dim=0)
 
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
