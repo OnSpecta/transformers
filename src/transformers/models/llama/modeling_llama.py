@@ -108,7 +108,10 @@ class LlamaRMSNorm(nn.Module):
 
 
 ALL_LAYERNORM_LAYERS.append(LlamaRMSNorm)
-
+try:
+    ALL_LAYERNORM_LAYERS.append(nn.RMSNorm)
+except Exception as ex:
+    print("Torch without native RMSNorm, proceeding with python implementation", ex)
 
 class LlamaRotaryEmbedding(nn.Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
@@ -647,8 +650,12 @@ class LlamaDecoderLayer(nn.Module):
             else LlamaFlashAttention2(config=config)
         )
         self.mlp = LlamaMLP(config)
-        self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        try:
+            self.input_layernorm = nn.RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+            self.post_attention_layernorm = nn.RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        except Exception as _:
+            self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+            self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def merge_qkv(self, attention_bias):
         if (type(self.self_attn) == LlamaAttention):
@@ -840,7 +847,10 @@ class LlamaModel(LlamaPreTrainedModel):
 
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
         self.layers = nn.ModuleList([LlamaDecoderLayer(config) for _ in range(config.num_hidden_layers)])
-        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        try:
+            self.norm = nn.RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        except Exception as _:
+            self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
